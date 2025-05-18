@@ -2,7 +2,7 @@
 FROM python:3.11-slim
 
 # Install FastAPI and Uvicorn
-RUN pip install fastapi uvicorn
+RUN pip install fastapi 'uvicorn[standard]'
 
 # Create app directory
 WORKDIR /app
@@ -19,7 +19,7 @@ EXPOSE 8000
 
 # Note: For extra security, run the container with --network=none to block network access for executed code
 # Example:
-# docker run --memory=128m --cpus=0.5 --network=none -p 8000:8000 python-exec-server
+# docker run --memory=128m --cpus=0.5 --network=none -p 3265:8000 python-exec-server
 
 # Run the FastAPI server
 CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
