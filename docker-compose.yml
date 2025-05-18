@@ -1,0 +1,11 @@
+services:
+  websocket:
+    image: python-exec-server:latest
+    build: .
+    restart: on-failure
+    ports:
+      - "3265:8000"
+    environment:
+      - NODE_ENV=production
+    volumes:
+      - ./logs:/app/logs
