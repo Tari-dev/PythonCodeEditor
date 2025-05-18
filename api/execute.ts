@@ -27,10 +27,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       py.stdin.write(input + '\n')
     }
     py.stdin.end()
-    py.stdout.on('data', data => { stdout += data })
-    py.stderr.on('data', data => { stderr += data })
-    py.on('close', code => {
-      res.status(200).json({ stdout, stderr, exitCode: code })
+    py.stdout.on('data', (data) => { stdout += data.toString() })
+    py.stderr.on('data', (data) => { stderr += data.toString() })
+    py.on('close', (exitCode) => {
+      res.status(200).json({ stdout, stderr, exitCode })
     })
   } catch (e) {
     res.status(500).json({ error: 'Execution error', details: String(e) })
