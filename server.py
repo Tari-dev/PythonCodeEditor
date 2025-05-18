@@ -73,14 +73,22 @@ async def websocket_execute(websocket: WebSocket):
             await websocket.send_json({"type": stream_type, "data": line.decode()})
     stdout_task = asyncio.create_task(read_stream(proc.stdout, "stdout"))
     stderr_task = asyncio.create_task(read_stream(proc.stderr, "stderr"))
+    proc_wait_task = asyncio.create_task(proc.wait())
     try:
         while True:
-            msg = await websocket.receive_text()
-            # Check if process is still running and stdin is open
-            if proc.returncode is not None or proc.stdin.is_closing():
+            done, pending = await asyncio.wait(
+                [websocket.receive_text(), proc_wait_task],
+                return_when=asyncio.FIRST_COMPLETED
+            )
+            if proc_wait_task in done:
+                # Process exited, break input loop
                 break
-            proc.stdin.write(msg.encode())
-            await proc.stdin.drain()
+            if websocket.receive_text in [t._coro for t in done]:
+                msg = list(done)[0].result()
+                if proc.stdin.is_closing():
+                    break
+                proc.stdin.write(msg.encode())
+                await proc.stdin.drain()
     except WebSocketDisconnect:
         proc.kill()
     finally:

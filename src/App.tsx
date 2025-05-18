@@ -5,8 +5,7 @@ import 'xterm/css/xterm.css'
 import './App.css'
 import { executePythonWS } from './executePython'
 
-const DEFAULT_CODE = `print('Hello, young coder!')\nname = input('What is your name? ')
-print('Nice to meet you,', name)`
+const DEFAULT_CODE = `print("Hello World")`
 
 function App() {
   const [isRunning, setIsRunning] = useState(false)
@@ -55,7 +54,15 @@ function App() {
           xtermRef.current?.write('\r')
         }
       },
-      onClose: () => setIsRunning(false),
+      onClose: () => {
+        setIsRunning(false)
+        // Remove key listener so no more input is sent after process ends
+        if (xtermRef.current && (xtermRef.current as any)._keyListenerDispose) {
+          ((xtermRef.current as any)._keyListenerDispose as { dispose: () => void }).dispose();
+          (xtermRef.current as any)._keyListenerDispose = null;
+        }
+        xtermRef.current?.writeln('\r\n[Process finished]')
+      },
     })
     // Listen for terminal key events and send to backend
     if (xtermRef.current && sendInput) {
