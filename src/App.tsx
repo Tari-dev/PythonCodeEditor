@@ -3,13 +3,12 @@ import Editor from '@monaco-editor/react'
 import { Terminal } from 'xterm'
 import 'xterm/css/xterm.css'
 import './App.css'
-import { executePython } from './executePython'
+import { executePythonWS } from './executePython'
 
 const DEFAULT_CODE = `print('Hello, young coder!')\nname = input('What is your name? ')
 print('Nice to meet you,', name)`
 
 function App() {
-  const [input, setInput] = useState('')
   const [isRunning, setIsRunning] = useState(false)
   const [files, setFiles] = useState([
     { name: 'main.py', content: DEFAULT_CODE }
@@ -23,24 +22,49 @@ function App() {
       xtermRef.current = new Terminal({
         fontSize: 16,
         theme: { background: '#1a1a1a' },
+        cursorBlink: true,
+        cursorStyle: 'bar',
+        cursorWidth: 1,
       })
       xtermRef.current.open(terminalRef.current)
+      // Reset scroll to left after each clear
+      xtermRef.current.onRender(() => {
+        if (terminalRef.current) {
+          terminalRef.current.scrollLeft = 0;
+        }
+      })
     }
   }, [])
 
-  // Simulate code execution (replace with real backend call)
-  const runCode = async () => {
+  // Interactive code execution using WebSocket
+  const runCode = () => {
     setIsRunning(true)
     xtermRef.current?.clear()
-    try {
-      const result = await executePython(currentFile.content, input)
-      if (result.stdout) xtermRef.current?.writeln(result.stdout)
-      if (result.stderr) xtermRef.current?.writeln(result.stderr)
-      if (result.exitCode !== 0) xtermRef.current?.writeln(`\n[Process exited with code ${result.exitCode}]`)
-    } catch (e: any) {
-      xtermRef.current?.writeln('Error executing code: ' + (e?.message || e))
+    let sendInput: ((input: string) => void) | null = null
+    sendInput = executePythonWS(currentFile.content, {
+      onStdout: (data) => xtermRef.current?.write(data),
+      onStderr: (data) => xtermRef.current?.write(data),
+      onClose: () => setIsRunning(false),
+    })
+    // Listen for terminal key events and send to backend
+    if (xtermRef.current && sendInput) {
+      xtermRef.current.focus()
+      // Remove previous key listeners to avoid duplicates
+      if ((xtermRef.current as any)._keyListenerDispose) {
+        ((xtermRef.current as any)._keyListenerDispose as { dispose: () => void }).dispose();
+      }
+      // Add new key listener and store dispose function
+      const keyListenerDispose: { dispose: () => void } = xtermRef.current.onKey((e) => {
+        if (e.domEvent.key === 'Enter') {
+          sendInput('\n');
+        } else if (e.domEvent.key.length === 1) {
+          sendInput(e.domEvent.key);
+        } else if (e.domEvent.key === 'Backspace') {
+          sendInput('\b');
+        }
+      });
+      (xtermRef.current as any)._keyListenerDispose = keyListenerDispose;
     }
-    setIsRunning(false)
   }
 
   // Share code (placeholder)
@@ -158,14 +182,7 @@ function App() {
         />
         <div className="terminal-panel" style={{ width: '100%', maxWidth: '1400px', margin: '0 auto' }}>
           <div className="terminal-header terminal-header-bg">Terminal</div>
-          <div ref={terminalRef} style={{ height: 70, background: '#1a1a1a', padding: 0 }} />
-          <input
-            className="input-box"
-            placeholder="Type your input here..."
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            disabled={isRunning}
-          />
+          <div ref={terminalRef} style={{background: '#1a1a1a', padding: 0 }} />
         </div>
       </div>
       <div className="ai-hints">

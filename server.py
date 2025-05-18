@@ -1,11 +1,12 @@
 # server.py - FastAPI Python code execution server
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 import subprocess
 import tempfile
 import os
 import sys
 import resource
+import asyncio
 
 app = FastAPI()
 
@@ -45,3 +46,42 @@ async def execute_code(request: Request):
         return JSONResponse({"stdout": stdout, "stderr": stderr, "exitCode": proc.returncode}, status_code=200)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.websocket("/ws/execute")
+async def websocket_execute(websocket: WebSocket):
+    await websocket.accept()
+    data = await websocket.receive_json()
+    code = data.get("code", "")
+    with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False) as f:
+        f.write(code)
+        filename = f.name
+    def set_limits():
+        resource.setrlimit(resource.RLIMIT_CPU, (5, 5))
+        resource.setrlimit(resource.RLIMIT_AS, (100 * 1024 * 1024, 100 * 1024 * 1024))
+    proc = await asyncio.create_subprocess_exec(
+        "python3", filename,
+        stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+        preexec_fn=set_limits
+    )
+    async def read_stream(stream, stream_type):
+        while True:
+            line = await stream.readline()
+            if not line:
+                break
+            await websocket.send_json({"type": stream_type, "data": line.decode()})
+    stdout_task = asyncio.create_task(read_stream(proc.stdout, "stdout"))
+    stderr_task = asyncio.create_task(read_stream(proc.stderr, "stderr"))
+    try:
+        while True:
+            msg = await websocket.receive_text()
+            proc.stdin.write(msg.encode())
+            await proc.stdin.drain()
+    except WebSocketDisconnect:
+        proc.kill()
+    finally:
+        await stdout_task
+        await stderr_task
+        os.unlink(filename)
+        await websocket.close()
