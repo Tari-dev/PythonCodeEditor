@@ -67,24 +67,29 @@ async def websocket_execute(websocket: WebSocket):
     )
     async def read_stream(stream, stream_type):
         while True:
-            line = await stream.readline()
-            if not line:
+            chunk = await stream.read(64)  # Read up to 64 bytes at a time
+            if not chunk:
                 break
-            await websocket.send_json({"type": stream_type, "data": line.decode()})
+            await websocket.send_json({"type": stream_type, "data": chunk.decode(errors='replace')})
     stdout_task = asyncio.create_task(read_stream(proc.stdout, "stdout"))
     stderr_task = asyncio.create_task(read_stream(proc.stderr, "stderr"))
     proc_wait_task = asyncio.create_task(proc.wait())
     try:
         while True:
+            input_task = asyncio.create_task(websocket.receive_text())
             done, pending = await asyncio.wait(
-                [websocket.receive_text(), proc_wait_task],
+                [input_task, proc_wait_task],
                 return_when=asyncio.FIRST_COMPLETED
             )
             if proc_wait_task in done:
-                # Process exited, break input loop
+                if not input_task.done():
+                    input_task.cancel()
                 break
-            if websocket.receive_text in [t._coro for t in done]:
-                msg = list(done)[0].result()
+            if input_task in done:
+                try:
+                    msg = input_task.result()
+                except asyncio.CancelledError:
+                    break
                 if proc.stdin.is_closing():
                     break
                 proc.stdin.write(msg.encode())
