@@ -59,7 +59,7 @@ async def websocket_execute(websocket: WebSocket):
         resource.setrlimit(resource.RLIMIT_CPU, (5, 5))
         resource.setrlimit(resource.RLIMIT_AS, (100 * 1024 * 1024, 100 * 1024 * 1024))
     proc = await asyncio.create_subprocess_exec(
-        "python3", filename,
+        "python3", "-u", filename,
         stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
