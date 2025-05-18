@@ -42,8 +42,19 @@ function App() {
     xtermRef.current?.clear()
     let sendInput: ((input: string) => void) | null = null
     sendInput = executePythonWS(currentFile.content, {
-      onStdout: (data) => xtermRef.current?.write(data),
-      onStderr: (data) => xtermRef.current?.write(data),
+      onStdout: (data) => {
+        xtermRef.current?.write(data)
+        // After each line, reset cursor to column 0
+        if (data.endsWith('\n')) {
+          xtermRef.current?.write('\r')
+        }
+      },
+      onStderr: (data) => {
+        xtermRef.current?.write(data)
+        if (data.endsWith('\n')) {
+          xtermRef.current?.write('\r')
+        }
+      },
       onClose: () => setIsRunning(false),
     })
     // Listen for terminal key events and send to backend
@@ -182,7 +193,7 @@ function App() {
         />
         <div className="terminal-panel" style={{ width: '100%', maxWidth: '1400px', margin: '0 auto' }}>
           <div className="terminal-header terminal-header-bg">Terminal</div>
-          <div ref={terminalRef} style={{background: '#1a1a1a', padding: 0 }} />
+          <div ref={terminalRef} style={{ height: 100, background: '#1a1a1a', padding: 0, textAlign: 'left', fontFamily: 'monospace' }} />
         </div>
       </div>
       <div className="ai-hints">

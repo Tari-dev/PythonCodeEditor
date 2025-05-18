@@ -76,6 +76,9 @@ async def websocket_execute(websocket: WebSocket):
     try:
         while True:
             msg = await websocket.receive_text()
+            # Check if process is still running and stdin is open
+            if proc.returncode is not None or proc.stdin.is_closing():
+                break
             proc.stdin.write(msg.encode())
             await proc.stdin.drain()
     except WebSocketDisconnect:
@@ -84,4 +87,5 @@ async def websocket_execute(websocket: WebSocket):
         await stdout_task
         await stderr_task
         os.unlink(filename)
-        await websocket.close()
+        if not websocket.client_state.name == 'DISCONNECTED':
+            await websocket.close()
