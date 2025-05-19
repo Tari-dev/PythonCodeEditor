@@ -42,17 +42,25 @@ function App() {
     let sendInput: ((input: string) => void) | null = null
     sendInput = executePythonWS(currentFile.content, {
       onStdout: (data) => {
-        xtermRef.current?.write(data)
-        // After each line, reset cursor to column 0
-        if (data.endsWith('\n')) {
-          xtermRef.current?.write('\r')
-        }
+        // Split output by lines and write each line, resetting cursor after each
+        const lines = data.split('\n');
+        lines.forEach((line, idx) => {
+          if (idx < lines.length - 1) {
+            xtermRef.current?.write(line + '\n\r');
+          } else if (line.length > 0) {
+            xtermRef.current?.write(line);
+          }
+        });
       },
       onStderr: (data) => {
-        xtermRef.current?.write(data)
-        if (data.endsWith('\n')) {
-          xtermRef.current?.write('\r')
-        }
+        const lines = data.split('\n');
+        lines.forEach((line, idx) => {
+          if (idx < lines.length - 1) {
+            xtermRef.current?.write(line + '\n\r');
+          } else if (line.length > 0) {
+            xtermRef.current?.write(line);
+          }
+        });
       },
       onClose: () => {
         setIsRunning(false)
