@@ -2,7 +2,7 @@
 FROM python:3.11-slim
 
 # Install FastAPI and Uvicorn
-RUN pip install fastapi 'uvicorn[standard]'
+RUN pip install fastapi 'uvicorn[standard]' docker
 
 # Create app directory
 WORKDIR /app
@@ -11,7 +11,8 @@ WORKDIR /app
 COPY server.py /app/server.py
 
 # Add a non-root user for security
-RUN useradd -m appuser
+ARG DOCKER_GID=999
+RUN groupadd -g $DOCKER_GID docker && useradd -m -g docker appuser && usermod -aG docker appuser
 USER appuser
 
 # Expose port

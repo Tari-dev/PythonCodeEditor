@@ -82,17 +82,14 @@ function App() {
       // Add new key listener and store dispose function
       const keyListenerDispose: { dispose: () => void } = xtermRef.current.onKey((e) => {
         if (e.domEvent.key === 'Enter') {
-          xtermRef.current?.write('\n'); // Echo Enter
           sendInput('\n');
-          // Reset cursor to column 0 after user presses Enter
-          xtermRef.current?.write('\r');
+          // Do not echo Enter locally; let backend echo
         } else if (e.domEvent.key.length === 1) {
-          xtermRef.current?.write(e.domEvent.key); // Echo character
           sendInput(e.domEvent.key);
+          // Do not echo character locally; let backend echo
         } else if (e.domEvent.key === 'Backspace') {
-          // Remove last character visually
-          xtermRef.current?.write('\b \b');
           sendInput('\b');
+          // Do not echo Backspace locally; let backend echo
         }
       });
       (xtermRef.current as any)._keyListenerDispose = keyListenerDispose;

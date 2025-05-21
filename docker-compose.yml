@@ -1,11 +1,17 @@
 services:
   websocket:
+    build:
+      context: .
+      args:
+        DOCKER_GID: ${DOCKER_GID}
     image: python-exec-server:latest
-    build: .
     restart: on-failure
     ports:
       - "3265:8000"
     environment:
       - NODE_ENV=production
     volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
       - ./logs:/app/logs
+    # For extra security, you can uncomment the next line to block network access for executed code
+    # network_mode: none
