@@ -10,7 +10,9 @@ export function executePythonWS(code: string, {
   onStderr: (data: string) => void,
   onClose?: () => void,
 }) {
-  const ws = new WebSocket('BACKEND_SERVER_URL');
+  // Use WebSocket URL from environment, fallback to localhost default
+  const wsUrl = import.meta.env.VITE_BACKEND_SERVER_URL || 'ws://localhost:8000/ws/execute';
+  const ws = new WebSocket(wsUrl);
   ws.onopen = () => {
     ws.send(JSON.stringify({ code }));
   };
